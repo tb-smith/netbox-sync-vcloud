@@ -124,6 +124,8 @@ class CheckCloudDirector(SourceBase):
 
         validation_failed = False
         for setting in ["vcloud_url", "username", "password"]:
+            # for debug
+            print(setting)
             if config_settings.get(setting) is None:
                 log.error(f"Config option '{setting}' in 'source/{self.name}' can't be empty/undefined")
                 validation_failed = True
