@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-#  for load data from vmWare vCloud Director
+#  for load data from vmWare vCloud Director try onne
 #  netbox-sync.py
 #
 #  This work is licensed under the terms of the MIT license.
