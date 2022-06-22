@@ -25,6 +25,20 @@ from module.netbox.inventory import NetBoxInventory
 from module.netbox.object_classes import *
 from module.sources import instantiate_sources
 
+# Test module
+from module.sources.vclouddirector import *
+from module.sources.vclouddirector.load_civm import CheckCloudDirector
+
+
+
+__version__ = "1.2.3"
+__version_date__ = "2022-04-09"
+__author__ = "Ricardo Bartels <ricardo.bartels@telekom.de>"
+__description__ = "NetBox Sync"
+__license__ = "MIT"
+__url__ = "https://github.com/bb-ricardo/netbox-sync"
+
+
 
 default_config_file_path = "./settings.ini"
 args = parse_command_line(self_description=self_description,
@@ -38,3 +52,12 @@ config_file = get_config_file(args.config_file)
 
 # get config handler
 config_handler = open_config_file(config_file)
+
+#for attr, value in config_handler.__dict__.items():
+#        print(attr, value)
+
+inventory = ''
+
+director = CheckCloudDirector (name='TestVCD',settings=config_handler,inventory=inventory)
+
+# print('config is:\n', config_handler )

@@ -10,6 +10,7 @@ from ipaddress import ip_network
 import os
 import glob
 import json
+#from xml.etree.ElementTree import tostring
 
 from packaging import version
 
@@ -88,11 +89,10 @@ class CheckCloudDirector(SourceBase):
     source_type = "vcloud_director"
     enabled = False
     inventory_file_path = None
-    device_object = None
-    inventory_file_content = None
+    device_object = None    
 
     def __init__(self, name=None, settings=None, inventory=None):
-   #    super().__init__()
+  
         if name is None:
             raise ValueError(f"Invalid value for attribute 'name': '{name}'.")
 
@@ -125,7 +125,8 @@ class CheckCloudDirector(SourceBase):
         validation_failed = False
         for setting in ["vcloud_url", "username", "password"]:
             # for debug
-            print(setting)
+            #print('setting is:\n', tostring(setting) )
             if config_settings.get(setting) is None:
                 log.error(f"Config option '{setting}' in 'source/{self.name}' can't be empty/undefined")
                 validation_failed = True
+                

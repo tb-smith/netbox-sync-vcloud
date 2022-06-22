@@ -8,13 +8,14 @@
 #  repository or visit: <https://opensource.org/licenses/MIT>.
 
 # define all available sources here
-from module.sources.vclouddirector.load_civm import CheckCloudDirector
 from .vmware.connection import VMWareHandler
 from .check_redfish.import_inventory import CheckRedfish
+from .vclouddirector.load_civm import CheckCloudDirector 
 
 from module.common.configuration import get_config
 from module.common.logging import get_logger
 from module.netbox.inventory import NetBoxInventory
+
 
 # list of valid sources
 valid_sources = [VMWareHandler, CheckRedfish, CheckCloudDirector]
