@@ -62,7 +62,7 @@ def main():
     # cli option overwrites config file
     log_level = grab(args, "log_level", fallback=log_level)
 
-    log_file = None
+    log_file = "sync-vcloud.log"
     if bool(config_handler.getboolean("common", "log_to_file", fallback=False)) is True:
         log_file = config_handler.get("common", "log_file", fallback=None)
 
