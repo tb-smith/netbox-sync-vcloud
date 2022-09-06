@@ -96,11 +96,12 @@ def main():
     # instantiate source handlers and get attributes
     log.info("Initializing sources")
     sources = instantiate_sources(config_handler, inventory)
-    print(sources)
+    #print(sources)
     # all sources are unavailable
     if len(sources) == 0:
         log.error("No working sources found. Exit.")
         exit(1)
+    log.info("Finish ---- Main")
     """
     # collect all dependent object classes
     log.info("Querying necessary objects from NetBox. This might take a while.")
