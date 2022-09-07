@@ -87,8 +87,9 @@ for vdc in vdc_list:
             #vapp_vm.list_virtual_hardware_section()
             allvm_org_list[vdc_name][vapp_name].append({
                 'name': vmName, 
-                'hardware': vapp_vm.list_virtual_hardware_section(),
-                'disk'    : vapp_vm.list_storage_profile() 
+                'hardware': vapp_vm.list_virtual_hardware_section(is_disk=True),
+                'network' : vapp_vm.list_nics()
+                #'disk'    : vapp_vm.list_storage_profile() 
 
             })
             #print(f"vm_name:{vmName}") 

@@ -5,6 +5,7 @@
 #  This work is licensed under the terms of the MIT license.
 #  For a copy, see file LICENSE.txt included in this
 #  repository or visit: <https://opensource.org/licenses/MIT>.
+# based on Pyvcloud Examples list-vapps.py  
 
 from ipaddress import ip_network
 import os
@@ -48,6 +49,7 @@ from pyvcloud.vcd.client import Client
 from pyvcloud.vcd.client import EntityType
 from pyvcloud.vcd.org import Org
 from pyvcloud.vcd.vdc import VDC
+from pyvcloud.vcd.vm import VM
 import requests
 
 log = get_logger()
@@ -98,7 +100,7 @@ class CheckCloudDirector(SourceBase):
     source_tag = None
     source_type = "vcloud_director"
     enabled = False
-    pyVcloudSession = None
+    vcloudClient = None
     device_object = None    
 
     def __init__(self, name=None, settings=None, inventory=None):
@@ -113,17 +115,17 @@ class CheckCloudDirector(SourceBase):
 
         self.source_tag = f"Source: {name}"
 
-        self.pyVcloudSession = self.create_api_session(settings)
+        self.create_api_session(settings)
 
         if self.enabled is False:
             log.info(f"Source '{name}' is currently disabled. Skipping")
             return
 
-        # self.init_successful = True
+        self.init_successful = True
 
         # self.interface_adapter_type_dict = dict()
 
-        self.pyVcloudSession.logout()
+        #self.pyVcloudSession.logout()
 
     def parse_config_settings(self, config_settings):
         """
@@ -135,9 +137,9 @@ class CheckCloudDirector(SourceBase):
             dict of config settings
 
         """
-
+        
         validation_failed = False
-        for setting in ["vcloud_url", "vlcoud_org", "username", "password"]:
+        for setting in ["vcloud_url", "vcloud_org", "username", "password"]:
             # for debug
             #print('setting is:\n', tostring(setting) )
             if config_settings.get(setting) is None:
@@ -158,27 +160,23 @@ class CheckCloudDirector(SourceBase):
 
         object_mapping = {
             "datacenter": {
-                "view_type": vim.Datacenter,
+                "view_type": VDC,
                 "view_handler": self.add_datacenter
-            },
-            "cluster": {
-                "view_type": vim.ClusterComputeResource,
-                "view_handler": self.add_cluster
-            },
-            "network": {
-                "view_type": vim.dvs.DistributedVirtualPortgroup,
-                "view_handler": self.add_port_group
-            },
-            "host": {
-                "view_type": vim.HostSystem,
-                "view_handler": self.add_host
-            },
+            },       
+        #    "network": {
+        #        "view_type": vim.dvs.DistributedVirtualPortgroup,
+        #        "view_handler": self.add_port_group
+        #    },
+        #    "host": {
+        #        "view_type": vim.HostSystem,
+        #        "view_handler": self.add_host
+        #    },
             "virtual machine": {
-                "view_type": vim.VirtualMachine,
+                "view_type": VM,
                 "view_handler": self.add_virtual_machine
             },
             "offline virtual machine": {
-                "view_type": vim.VirtualMachine,
+                "view_type": VM,
                 "view_handler": self.add_virtual_machine
             }
         }
@@ -197,6 +195,7 @@ class CheckCloudDirector(SourceBase):
     def create_api_session(self, settings):
         #print(settings)
         log.info(f"Create API session for '{self.name}'")
+        requests.packages.urllib3.disable_warnings()
         client = Client(settings['vcloud_url'],
             verify_ssl_certs=True,
             log_file='pyvcloud.log',
@@ -206,4 +205,4 @@ class CheckCloudDirector(SourceBase):
         client.set_highest_supported_version()
         client.set_credentials(BasicLoginCredentials(settings['username'], settings['vcloud_org'], settings['password']))
         self.enabled = True
-        return client
+        self.vcloudClient = client
