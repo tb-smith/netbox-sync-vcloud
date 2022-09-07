@@ -102,7 +102,6 @@ def main():
         log.error("No working sources found. Exit.")
         exit(1)
     log.info("Finish ---- Main")
-    """
     # collect all dependent object classes
     log.info("Querying necessary objects from NetBox. This might take a while.")
     for source in sources:
@@ -121,6 +120,7 @@ def main():
         log.debug(f"Retrieving data from source '{source.name}'")
         source.apply()
 
+#    """
     # add/remove tags to/from all inventory items
     inventory.tag_all_the_things(nb_handler)
 
@@ -141,7 +141,7 @@ def main():
     # finish
     log.info("Completed NetBox Sync in %s" % get_relative_time(datetime.now() - start_time))
 
-    """
+ #   """
 
 
 if __name__ == "__main__":

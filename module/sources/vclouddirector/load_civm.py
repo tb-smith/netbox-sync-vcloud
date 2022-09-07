@@ -123,9 +123,9 @@ class CheckCloudDirector(SourceBase):
 
         self.init_successful = True
 
+
         # self.interface_adapter_type_dict = dict()
 
-        #self.pyVcloudSession.logout()
 
     def parse_config_settings(self, config_settings):
         """
@@ -162,7 +162,7 @@ class CheckCloudDirector(SourceBase):
             "datacenter": {
                 "view_type": VDC,
                 "view_handler": self.add_datacenter
-            },       
+            }       
         #    "network": {
         #        "view_type": vim.dvs.DistributedVirtualPortgroup,
         #        "view_handler": self.add_port_group
@@ -171,15 +171,21 @@ class CheckCloudDirector(SourceBase):
         #        "view_type": vim.HostSystem,
         #        "view_handler": self.add_host
         #    },
-            "virtual machine": {
-                "view_type": VM,
-                "view_handler": self.add_virtual_machine
-            },
-            "offline virtual machine": {
-                "view_type": VM,
-                "view_handler": self.add_virtual_machine
-            }
+        #    "virtual machine": {
+        #        "view_type": VM,
+        #        "view_handler": self.add_virtual_machine
+        #    },
+        #    "offline virtual machine": {
+        #        "view_type": VM,
+        #        "view_handler": self.add_virtual_machine
+        #    }
         }
+        vdc_list = self.get_vdc_list()
+        for vdc in vdc_list:
+            self.add_datacenter(vdc)
+        #for view_name, view_details in object_mapping.items():
+        self.vcloudClient.logout()
+
 
     def add_necessary_base_objects(self):
         """
@@ -206,3 +212,30 @@ class CheckCloudDirector(SourceBase):
         client.set_credentials(BasicLoginCredentials(settings['username'], settings['vcloud_org'], settings['password']))
         self.enabled = True
         self.vcloudClient = client
+
+    def get_vdc_list(self):
+
+        org_resource = self.vcloudClient.get_org()
+        org = Org(self.vcloudClient, resource=org_resource)        
+        vdc_list = org.list_vdcs()
+        return vdc_list
+
+    def add_datacenter(self, obj):
+        """
+        Add a vCenter datacenter as a NBClusterGroup to NetBox
+
+        Parameters
+        ----------
+        obj: vim.Datacenter
+            datacenter object
+
+        """
+        print(grab(obj, "name"))
+        name = get_string_or_none(grab(obj, "name"))
+
+        if name is None:
+            return
+
+        log.debug(f"Parsing vCenter datacenter: {name}")
+
+        self.inventory.add_update_object(NBClusterGroup, data={"name": name}, source=self)
