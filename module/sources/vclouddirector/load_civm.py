@@ -101,7 +101,8 @@ class CheckCloudDirector(SourceBase):
     source_type = "vcloud_director"
     enabled = False
     vcloudClient = None
-    device_object = None    
+    device_object = None
+    #vcd_org     
 
     def __init__(self, name=None, settings=None, inventory=None):
   
@@ -140,8 +141,6 @@ class CheckCloudDirector(SourceBase):
         
         validation_failed = False
         for setting in ["vcloud_url", "vcloud_org", "username", "password"]:
-            # for debug
-            #print('setting is:\n', tostring(setting) )
             if config_settings.get(setting) is None:
                 log.error(f"Config option '{setting}' in 'source/{self.name}' can't be empty/undefined")
                 validation_failed = True
@@ -157,32 +156,14 @@ class CheckCloudDirector(SourceBase):
         Then parse the system data first and then all components.
         """
         self.add_necessary_base_objects()
+        
+        vdc_org = self.get_vcloud_org(self.vcloudClient)
+        self.add_datacenter( {"name": vdc_org.get_name() } )
 
-        object_mapping = {
-            "datacenter": {
-                "view_type": VDC,
-                "view_handler": self.add_datacenter
-            }       
-        #    "network": {
-        #        "view_type": vim.dvs.DistributedVirtualPortgroup,
-        #        "view_handler": self.add_port_group
-        #    },
-        #    "host": {
-        #        "view_type": vim.HostSystem,
-        #        "view_handler": self.add_host
-        #    },
-        #    "virtual machine": {
-        #        "view_type": VM,
-        #        "view_handler": self.add_virtual_machine
-        #    },
-        #    "offline virtual machine": {
-        #        "view_type": VM,
-        #        "view_handler": self.add_virtual_machine
-        #    }
-        }
-        vdc_list = self.get_vdc_list()
-        for vdc in vdc_list:
-            self.add_datacenter(vdc)
+      #  vdc_list = self.get_vdc_list()
+      #  for vdc in vdc_list:
+      #      #self.add_datacenter(vdc)
+      #      print(vdc)
         #for view_name, view_details in object_mapping.items():
         self.vcloudClient.logout()
 
@@ -213,10 +194,11 @@ class CheckCloudDirector(SourceBase):
         self.enabled = True
         self.vcloudClient = client
 
-    def get_vdc_list(self):
+    def get_vcloud_org(self, client):
+        org_resource = client.get_org()
+        return Org(client, resource=org_resource)        
 
-        org_resource = self.vcloudClient.get_org()
-        org = Org(self.vcloudClient, resource=org_resource)        
+    def get_vdc_list(self, org):
         vdc_list = org.list_vdcs()
         return vdc_list
 
@@ -229,8 +211,7 @@ class CheckCloudDirector(SourceBase):
         obj: vim.Datacenter
             datacenter object
 
-        """
-        print(grab(obj, "name"))
+        """        
         name = get_string_or_none(grab(obj, "name"))
 
         if name is None:
