@@ -92,6 +92,8 @@ class CheckCloudDirector(SourceBase):
         "overwrite_host_name": False,
         "overwrite_interface_name": False,
         "overwrite_interface_attributes": True,
+        "vdc_include_filter": None,
+        "vdc_exclude_filter": None
     }
 
     init_successful = False
@@ -124,7 +126,9 @@ class CheckCloudDirector(SourceBase):
 
         self.init_successful = True
 
+        self.site_name = f"vCloudDirector: {name}"
 
+        self.permitted_clusters = dict()
         # self.interface_adapter_type_dict = dict()
 
 
@@ -160,10 +164,10 @@ class CheckCloudDirector(SourceBase):
         vdc_org = self.get_vcloud_org(self.vcloudClient)
         self.add_datacenter( {"name": vdc_org.get_name() } )
 
-      #  vdc_list = self.get_vdc_list()
-      #  for vdc in vdc_list:
-      #      #self.add_datacenter(vdc)
-      #      print(vdc)
+        vdc_list = self.get_vdc_list(vdc_org)
+        for vdc in vdc_list:
+            self.add_cluster(vdc,vdc_org.get_name())
+            #print(vdc)
         #for view_name, view_details in object_mapping.items():
         self.vcloudClient.logout()
 
@@ -201,15 +205,45 @@ class CheckCloudDirector(SourceBase):
     def get_vdc_list(self, org):
         vdc_list = org.list_vdcs()
         return vdc_list
-
-    def add_datacenter(self, obj):
+    @staticmethod
+    def passes_filter(name, include_filter, exclude_filter):
         """
-        Add a vCenter datacenter as a NBClusterGroup to NetBox
+        checks if object name passes a defined object filter.
 
         Parameters
         ----------
-        obj: vim.Datacenter
-            datacenter object
+        name: str
+            name of the object to check
+        include_filter: regex object
+            regex object of include filter
+        exclude_filter: regex object
+            regex object of exclude filter
+
+        Returns
+        -------
+        bool: True if all filter passed, otherwise False
+        """
+
+        # first includes
+        if include_filter is not None and not include_filter.match(name):
+            log.debug(f"Object '{name}' did not match include filter '{include_filter.pattern}'. Skipping")
+            return False
+
+        # second excludes
+        if exclude_filter is not None and exclude_filter.match(name):
+            log.debug(f"Object '{name}' matched exclude filter '{exclude_filter.pattern}'. Skipping")
+            return False
+
+        return True
+
+
+    def add_datacenter(self, obj):
+        """
+        Add a cloud director org as a NBClusterGroup to NetBox
+
+        Parameters
+        ----------
+        obj: name: value
 
         """        
         name = get_string_or_none(grab(obj, "name"))
@@ -217,6 +251,53 @@ class CheckCloudDirector(SourceBase):
         if name is None:
             return
 
-        log.debug(f"Parsing vCenter datacenter: {name}")
+        log.debug(f"Parsing cloud director org: {name}")
 
         self.inventory.add_update_object(NBClusterGroup, data={"name": name}, source=self)
+
+    def add_cluster(self, obj, group):
+        """
+        Add a vCloud director VDC as a NBCluster to NetBox. Cluster name is checked against
+        cluster_include_filter and cluster_exclude_filter config setting. Also adds
+        cluster and site_name to "self.permitted_clusters" so hosts and VMs can be
+        checked if they are part of a permitted cluster.
+
+        Parameters
+        ----------
+        obj: vim.ClusterComputeResource
+            cluster to add
+        """
+
+        name = get_string_or_none(grab(obj, "name"))
+        #group = get_string_or_none(grab(obj, "parent.parent.name"))
+
+        if name is None or group is None:
+            return
+
+        log.debug(f"Parsing vcloud VDC: {name}")
+        # need add filter
+        #if self.passes_filter(name, self.vdc_include_filter, self.vdc_exclude_filter) is False:
+        #    return
+
+        #site_name = self.get_site_name(NBCluster, name)
+        site_name = self.site_name
+
+        data = {
+            "name": name,
+            "type": {"name": "vCloud director VDC"},
+            "group": {"name": group},
+            "site": {"name": site_name}
+        }
+
+        #tenant_name = self.get_object_relation(name, "cluster_tenant_relation")
+        #if tenant_name is not None:
+        #    data["tenant"] = {"name": tenant_name}
+#
+        #cluster_tags = self.get_object_relation(name, "cluster_tag_relation")
+        #cluster_tags.extend(self.get_object_tags(obj))
+        #if len(cluster_tags) > 0:
+        #    data["tags"] = cluster_tags
+
+        self.inventory.add_update_object(NBCluster, data=data, source=self)
+
+        self.permitted_clusters[name] = site_name
