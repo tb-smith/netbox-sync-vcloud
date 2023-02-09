@@ -14,7 +14,7 @@ __pycache__
 log/*
 
 #log file
-*.log
+*.log*
 
 # chache files
 cache/*
