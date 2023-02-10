@@ -65,13 +65,14 @@ for vdc in vdc_list:
     vdc = VDC(client, resource=vdc_resource)
     allvm_org_list[vdc_name] = {}
     print("Fetching vApps....")
-    vapps = vdc.list_resources(EntityType.VAPP)
+    vapp_list = vdc.list_resources(EntityType.VAPP)
     vm_list = list()
-    for vapp in vapps:
+    for vapp in vapp_list:
         vapp_name = vapp.get('name')
         vapp_resource = vdc.get_vapp(vapp_name)
 
         vapp_obj = VApp(client, resource=vapp_resource)
+
         #print(f"vapp_obj:{vapp_obj}")
         #print(type(vm_resource))
 
@@ -86,7 +87,8 @@ for vdc in vdc_list:
             vmName = vm_res.attrib["name"]
             #vapp_vm.list_virtual_hardware_section()
             allvm_org_list[vdc_name][vapp_name].append({
-                'name': vmName, 
+                'name'    : vmName, 
+                'active'  : vapp_vm.is_powered_on(),
                 'hardware': vapp_vm.list_virtual_hardware_section(is_disk=True),
                 'network' : vapp_vm.list_nics()
                 #'disk'    : vapp_vm.list_storage_profile() 

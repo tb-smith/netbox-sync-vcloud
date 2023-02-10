@@ -50,6 +50,7 @@ from pyvcloud.vcd.client import Client
 from pyvcloud.vcd.client import EntityType
 from pyvcloud.vcd.org import Org
 from pyvcloud.vcd.vdc import VDC
+from pyvcloud.vcd.vapp import VApp
 from pyvcloud.vcd.vm import VM
 import requests
 
@@ -199,15 +200,56 @@ class CheckCloudDirector(SourceBase):
         First try to find and iterate over each inventory file.
         Then parse the system data first and then all components.
         """
+        # add tags
         self.add_necessary_base_objects()
         
         vdc_org = self.get_vcloud_org(self.vcloudClient)
         self.add_datacenter( {"name": vdc_org.get_name() } )
 
         vdc_list = self.get_vdc_list(vdc_org)
+
+        allvm_org_list = dict()
+
         for vdc in vdc_list:
+            log.info(f"Add virtual cluster for '{vdc_org.get_name()}")
             self.add_cluster(vdc,vdc_org.get_name())
             #print(vdc)
+            vm_list = list()
+            vdc_resource = vdc_org.get_vdc(vdc['name'])
+            vdc_obj = VDC(self.vcloudClient, resource=vdc_resource)
+            vapp_list = vdc_obj.list_resources(EntityType.VAPP)
+            for vapp in vapp_list:
+                vapp_name = vapp.get('name')
+                vapp_resource = vdc_obj.get_vapp(vapp_name)
+                vapp_obj = VApp(self.vcloudClient, resource=vapp_resource)
+                #vapp_obj = VApp(client, resource=vapp_resource)
+                #vapp_obj = self.get_vapp_list(vdc)
+
+                #print("Fetching VM...")
+                vm_resource = vapp_obj.get_all_vms()
+                log.debug(f"Found '{len(vm_resource)}' vm in '{vapp_name}'")
+                # get vapp vm count first
+                allvm_org_list[vdc['name']][vapp_name] = []
+                vapp_vm = list()
+                for vm_res in vm_resource:
+                    vapp_vm = VM(self.vcloudClient, resource=vm_res)
+                    vmName = vm_res.attrib["name"]
+                    #vapp_vm.list_virtual_hardware_section()
+                '''
+                    allvm_org_list[vdc_name][vapp_name].append({
+                        'name'    : vmName, 
+                        'active'  : vapp_vm.is_powered_on(),
+                        'hardware': vapp_vm.list_virtual_hardware_section(is_disk=True),
+                        'network' : vapp_vm.list_nics()
+                        #'disk'    : vapp_vm.list_storage_profile() 
+
+                    })
+                    #print(f"vm_name:{vmName}") 
+                    break
+
+                #print(type(vm_resource))
+                break
+                '''
         #for view_name, view_details in object_mapping.items():
         self.vcloudClient.logout()
 
@@ -245,6 +287,11 @@ class CheckCloudDirector(SourceBase):
     def get_vdc_list(self, org):
         vdc_list = org.list_vdcs()
         return vdc_list
+
+    def get_vapp(self, vdc):
+        vapp_list = False
+        return vapp_list
+
     @staticmethod
     def passes_filter(name, include_filter, exclude_filter):
         """
@@ -424,7 +471,24 @@ class CheckCloudDirector(SourceBase):
         self.inventory.add_update_object(NBCluster, data=data, source=self)
 
         self.permitted_clusters[name] = site_name
+    
+    def add_virtual_machine(self, obj):
+        """
+        Parse a VDC VM add to NetBox once all data is gathered.
+
+        Parameters
+        ----------
+        obj: 
+            virtual machine object to parse
+        """
         
+        name = obj.name
+       
+        log.debug(f"Parsing VCD VM: {name}")
+
+        # get VM power state
+        status = "active" if get_string_or_none(obj.active) else "offline"
+
     def update_basic_data(self):
         """
 

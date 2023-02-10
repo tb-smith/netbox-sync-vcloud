@@ -1,0 +1,29 @@
+{
+    "name":   "ms-ts-dsp1",
+    "active": "True",
+    "hardware": [
+        {
+            "cpuVirtualQuantity": 8,
+            "cpuCoresPerSocket": 4
+        },
+        {
+            "memoryVirtualQuantityInMb": 24576
+        },
+        {
+            "diskElementName": "Hard disk 1",
+            "diskVirtualQuantityInBytes": 107374182400
+        }
+    ],
+    "network": [
+        {
+            "index": 0,
+            "connected": "true",
+            "primary": "true",
+            "adapter_type": "E1000E",
+            "network": "NON-SAP-NETWORK",
+            "ip_address_mode": "POOL",
+            "ip_address": "10.131.205.34",
+            "mac_address": "00:50:56:01:1a:ee"
+        }
+    ]
+}
