@@ -12,6 +12,7 @@ import os
 import glob
 import json
 import re
+import math
 #from xml.etree.ElementTree import tostring
 
 from packaging import version
@@ -222,34 +223,35 @@ class CheckCloudDirector(SourceBase):
                 vapp_name = vapp.get('name')
                 vapp_resource = vdc_obj.get_vapp(vapp_name)
                 vapp_obj = VApp(self.vcloudClient, resource=vapp_resource)
-                #vapp_obj = VApp(client, resource=vapp_resource)
-                #vapp_obj = self.get_vapp_list(vdc)
-
-                #print("Fetching VM...")
                 vm_resource = vapp_obj.get_all_vms()
                 log.debug(f"Found '{len(vm_resource)}' vm in '{vapp_name}'")
                 # get vapp vm count first
-                allvm_org_list[vdc['name']][vapp_name] = []
+                #allvm_org_list[vdc['name']][vapp_name] = []
                 vapp_vm = list()
                 for vm_res in vm_resource:
+                    log.debug(f"Get vm data ....")
                     vapp_vm = VM(self.vcloudClient, resource=vm_res)
                     vmName = vm_res.attrib["name"]
-                    #vapp_vm.list_virtual_hardware_section()
-                '''
-                    allvm_org_list[vdc_name][vapp_name].append({
+                    #allvm_org_list[vdc_name][vapp_name].append({
+                    vm_data = {
                         'name'    : vmName, 
                         'active'  : vapp_vm.is_powered_on(),
                         'hardware': vapp_vm.list_virtual_hardware_section(is_disk=True),
                         'network' : vapp_vm.list_nics()
-                        #'disk'    : vapp_vm.list_storage_profile() 
-
-                    })
-                    #print(f"vm_name:{vmName}") 
+                    }
+                    disk_size = 0
+                    for hw_element in vm_data['hardware']:
+                        if grab(hw_element,'diskElementName'):
+                            disk_size += grab(hw_element,'diskVirtualQuantityInBytes')
+                    # get disk size in GB
+                    p = math.pow(1024, 3)
+                    disk_size = round(disk_size / p, 0)
+                    print(f"disk is: '{disk_size}' GB for '{vmName}'" )
+                    
                     break
 
                 #print(type(vm_resource))
                 break
-                '''
         #for view_name, view_details in object_mapping.items():
         self.vcloudClient.logout()
 
@@ -438,6 +440,10 @@ class CheckCloudDirector(SourceBase):
         """
 
         name = get_string_or_none(grab(obj, "name"))
+
+        site_name = self.get_object_relation(name, 'cluster_site_relation')
+        log.debug(f"Try get '{self.settings['vcloud_org']}' site_relation for '{self.settings['cluster_site_relation']}'  is a '{site_name}'")
+
         #group = get_string_or_none(grab(obj, "parent.parent.name"))
 
         if name is None or group is None:
@@ -491,7 +497,6 @@ class CheckCloudDirector(SourceBase):
 
     def update_basic_data(self):
         """
-
         Returns
         -------
 
