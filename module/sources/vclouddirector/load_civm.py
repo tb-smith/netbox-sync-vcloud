@@ -7,12 +7,13 @@
 #  repository or visit: <https://opensource.org/licenses/MIT>.
 # based on Pyvcloud Examples list-vapps.py  
 
-from ipaddress import ip_network
 import os
 import glob
 import json
 import re
 import math
+from ipaddress import ip_address, ip_network, ip_interface
+from urllib.parse import unquote
 #from xml.etree.ElementTree import tostring
 
 from packaging import version
@@ -22,6 +23,7 @@ from module.common.logging import get_logger
 from module.common.misc import grab, get_string_or_none
 from module.common.support import normalize_mac_address, ip_valid_to_add_to_netbox
 from module.netbox.object_classes import (
+    NetBoxObject,
     NetBoxInterfaceType,
     NBTag,
     NBManufacturer,
@@ -33,14 +35,14 @@ from module.netbox.object_classes import (
     NBSite,
     NBCluster,
     NBDevice,
+    NBVM,
+    NBVMInterface,
     NBInterface,
     NBIPAddress,
     NBPrefix,
     NBTenant,
     NBVRF,
     NBVLAN,
-    NBPowerPort,
-    NBInventoryItem,
     NBCustomField
 )
 
@@ -74,14 +76,14 @@ class CheckCloudDirector(SourceBase):
         NBSite,
         NBCluster,
         NBDevice,
+        NBVM,
+        NBVMInterface,
         NBInterface,
         NBIPAddress,
         NBPrefix,
         NBTenant,
         NBVRF,
         NBVLAN,
-        NBPowerPort,
-        NBInventoryItem,
         NBCustomField
     ]
 
@@ -98,7 +100,8 @@ class CheckCloudDirector(SourceBase):
         "cluster_tenant_relation": None,
         "cluster_site_relation": None,
         "vdc_include_filter": None,
-        "vdc_exclude_filter": None
+        "vdc_exclude_filter": None,
+        "set_primary_ip": "when-undefined"
     }
 
     init_successful = False
@@ -112,6 +115,7 @@ class CheckCloudDirector(SourceBase):
     device_object = None
     
     site_name = None
+    #permitted_subnets = None
     #vcd_org     
 
     def __init__(self, name=None, settings=None, inventory=None):
@@ -156,8 +160,40 @@ class CheckCloudDirector(SourceBase):
                 log.error(f"Config option '{setting}' in 'source/{self.name}' can't be empty/undefined")
                 validation_failed = True
 
+        # check permitted ip subnets
+        if config_settings.get("permitted_subnets") is None:
+            log.info(f"Config option 'permitted_subnets' in 'source/{self.name}' is undefined. "
+                     f"No IP addresses will be populated to NetBox!")
+        else:
+            config_settings["permitted_subnets"] = \
+                [x.strip() for x in config_settings.get("permitted_subnets").split(",") if x.strip() != ""]
+
+            permitted_subnets = list()
+            for permitted_subnet in config_settings["permitted_subnets"]:
+                try:
+                    permitted_subnets.append(ip_network(permitted_subnet))
+                except Exception as e:
+                    log.error(f"Problem parsing permitted subnet: {e}")
+                    validation_failed = True
+
+            config_settings["permitted_subnets"] = permitted_subnets
+
+        # check include and exclude filter expressions
+        for setting in [x for x in config_settings.keys() if "filter" in x]:
+            if config_settings.get(setting) is None or config_settings.get(setting).strip() == "":
+                continue
+
+            re_compiled = None
+            try:
+                re_compiled = re.compile(config_settings.get(setting))
+            except Exception as e:
+                log.error(f"Problem parsing regular expression for '{setting}': {e}")
+                validation_failed = True
+
+            config_settings[setting] = re_compiled
+
         for relation_option in [x for x in self.settings.keys() if "relation" in x]:
-            
+
             if config_settings.get(relation_option) is None:
                 continue
 
@@ -187,10 +223,35 @@ class CheckCloudDirector(SourceBase):
 
                 relation_data.append({
                     "object_regex": re_compiled,
-                    f"assigned_name": relation_name
+                    "assigned_name": relation_name
                 })
 
             config_settings[relation_option] = relation_data
+
+        if config_settings.get("dns_name_lookup") is True and config_settings.get("custom_dns_servers") is not None:
+
+            custom_dns_servers = \
+                [x.strip() for x in config_settings.get("custom_dns_servers").split(",") if x.strip() != ""]
+
+            tested_custom_dns_servers = list()
+            for custom_dns_server in custom_dns_servers:
+                try:
+                    tested_custom_dns_servers.append(str(ip_address(custom_dns_server)))
+                except ValueError:
+                    log.error(f"Config option 'custom_dns_servers' value '{custom_dns_server}' "
+                              f"does not appear to be an IP address.")
+                    validation_failed = True
+
+            config_settings["custom_dns_servers"] = tested_custom_dns_servers
+
+        if validation_failed is True:
+            log.error("Config validation failed. Exit!")
+            exit(1)
+
+        for setting in self.settings.keys():
+            setattr(self, setting, config_settings.get(setting))
+
+        
 
 
     def apply(self):
@@ -216,8 +277,6 @@ class CheckCloudDirector(SourceBase):
         for vdc in vdc_list:
             log.info(f"Add virtual cluster for '{vdc_org.get_name()}")
             self.add_cluster(vdc,vdc_org.get_name())
-            #print(vdc)
-            vm_list = list()
             vdc_resource = vdc_org.get_vdc(vdc['name'])
             vdc_obj = VDC(self.vcloudClient, resource=vdc_resource)
             vapp_list = vdc_obj.list_resources(EntityType.VAPP)
@@ -393,6 +452,164 @@ class CheckCloudDirector(SourceBase):
         return site_name
 
 
+    def get_object_based_on_macs(self, object_type, mac_list=None):
+        """
+        Try to find a NetBox object based on list of MAC addresses.
+
+        Iterate over all interfaces of this object type and compare MAC address with list of desired MAC
+        addresses. If match was found store related machine object and count every correct match.
+
+        If exactly one machine with matching interfaces was found then this one will be returned.
+
+        If two or more machines with matching MACs are found compare the two machines with
+        the highest amount of matching interfaces. If the ration of matching interfaces
+        exceeds 2.0 then the top matching machine is chosen as desired object.
+
+        If the ration is below 2.0 then None will be returned. The probability is to low that
+        this one is the correct one.
+
+        None will also be returned if no machine was found at all.
+
+        Parameters
+        ----------
+        object_type: (NBDevice, NBVM)
+            type of NetBox device to find in inventory
+        mac_list: list
+            list of MAC addresses to compare against NetBox interface objects
+
+        Returns
+        -------
+        (NBDevice, NBVM, None): object instance of found device, otherwise None
+        """
+
+        object_to_return = None
+
+        if object_type not in [NBDevice, NBVM]:
+            raise ValueError(f"Object must be a '{NBVM.name}' or '{NBDevice.name}'.")
+
+        if mac_list is None or not isinstance(mac_list, list) or len(mac_list) == 0:
+            return
+
+        interface_typ = NBInterface if object_type == NBDevice else NBVMInterface
+
+        objects_with_matching_macs = dict()
+        matching_object = None
+
+        for interface in self.inventory.get_all_items(interface_typ):
+
+            if grab(interface, "data.mac_address") in mac_list:
+
+                matching_object = grab(interface, f"data.{interface.secondary_key}")
+                if not isinstance(matching_object, (NBDevice, NBVM)):
+                    continue
+
+                log.debug2("Found matching MAC '%s' on %s '%s'" %
+                           (grab(interface, "data.mac_address"), object_type.name,
+                            matching_object.get_display_name(including_second_key=True)))
+
+                if objects_with_matching_macs.get(matching_object) is None:
+                    objects_with_matching_macs[matching_object] = 1
+                else:
+                    objects_with_matching_macs[matching_object] += 1
+
+        # try to find object based on amount of matching MAC addresses
+        num_devices_witch_matching_macs = len(objects_with_matching_macs.keys())
+
+        if num_devices_witch_matching_macs == 1 and isinstance(matching_object, (NBDevice, NBVM)):
+
+            log.debug2("Found one %s '%s' based on MAC addresses and using it" %
+                       (object_type.name, matching_object.get_display_name(including_second_key=True)))
+
+            object_to_return = list(objects_with_matching_macs.keys())[0]
+
+        elif num_devices_witch_matching_macs > 1:
+
+            log.debug2(f"Found {num_devices_witch_matching_macs} {object_type.name}s with matching MAC addresses")
+
+            # now select the two top matches
+            first_choice, second_choice = \
+                sorted(objects_with_matching_macs, key=objects_with_matching_macs.get, reverse=True)[0:2]
+
+            first_choice_matches = objects_with_matching_macs.get(first_choice)
+            second_choice_matches = objects_with_matching_macs.get(second_choice)
+
+            log.debug2(f"The top candidate {first_choice.get_display_name()} with {first_choice_matches} matches")
+            log.debug2(f"The second candidate {second_choice.get_display_name()} with {second_choice_matches} matches")
+
+            # get ratio between
+            matching_ration = first_choice_matches / second_choice_matches
+
+            # only pick the first one if the ration exceeds 2
+            if matching_ration >= 2.0:
+                log.debug2(f"The matching ratio of {matching_ration} is high enough "
+                           f"to select {first_choice.get_display_name()} as desired {object_type.name}")
+                object_to_return = first_choice
+            else:
+                log.debug2("Both candidates have a similar amount of "
+                           "matching interface MAC addresses. Using NONE of them!")
+
+        return object_to_return
+
+    def get_object_based_on_primary_ip(self, object_type, primary_ip4=None, primary_ip6=None):
+        """
+        Try to find a NBDevice or NBVM based on the primary IP address. If an exact
+        match was found the device/vm object will be returned immediately without
+        checking of the other primary IP address (if defined).
+
+        Parameters
+        ----------
+        object_type: (NBDevice, NBVM)
+            object type to look for
+        primary_ip4: str
+            primary IPv4 address of object to find
+        primary_ip6: str
+            primary IPv6 address of object to find
+
+        Returns
+        -------
+
+        """
+
+        def _matches_device_primary_ip(device_primary_ip, ip_needle):
+
+            ip = None
+            if device_primary_ip is not None and ip_needle is not None:
+                if isinstance(device_primary_ip, dict):
+                    ip = grab(device_primary_ip, "address")
+
+                elif isinstance(device_primary_ip, int):
+                    ip = self.inventory.get_by_id(NBIPAddress, nb_id=device_primary_ip)
+                    ip = grab(ip, "data.address")
+
+                if ip is not None and ip.split("/")[0] == ip_needle:
+                    return True
+
+            return False
+
+        if object_type not in [NBDevice, NBVM]:
+            raise ValueError(f"Object must be a '{NBVM.name}' or '{NBDevice.name}'.")
+
+        if primary_ip4 is None and primary_ip6 is None:
+            return
+
+        if primary_ip4 is not None:
+            primary_ip4 = str(primary_ip4).split("/")[0]
+
+        if primary_ip6 is not None:
+            primary_ip6 = str(primary_ip6).split("/")[0]
+
+        for device in self.inventory.get_all_items(object_type):
+
+            if _matches_device_primary_ip(grab(device, "data.primary_ip4"), primary_ip4) is True:
+                log.debug2(f"Found existing host '{device.get_display_name()}' "
+                           f"based on the primary IPv4 '{primary_ip4}'")
+                return device
+
+            if _matches_device_primary_ip(grab(device, "data.primary_ip6"), primary_ip6) is True:
+                log.debug2(f"Found existing host '{device.get_display_name()}' "
+                           f"based on the primary IPv6 '{primary_ip6}'")
+                return device
+
     def add_datacenter(self, obj):
         """
         Add a cloud director org as a NBClusterGroup to NetBox
@@ -482,36 +699,61 @@ class CheckCloudDirector(SourceBase):
             'network' : None
         }
         disk_size = 0
-        
+        tenant_name = self.get_object_relation(vm_data["name"], "vm_tenant_relation")
         for hw_element in vapp_vm.list_virtual_hardware_section(is_disk=True):
             vcpus = grab(hw_element,'cpuVirtualQuantity')
             if vcpus:
-                vm_data['vcpus'] = vcpus 
+                vm_data['vcpus'] = int(vcpus) 
             memory = grab(hw_element,'memoryVirtualQuantityInMb')
             if memory:            
-                vm_data['memory'] = memory 
+                #log.debug(f"type of var memory: '{memory.pytype}'")
+                vm_data['memory'] = int(memory)
             if grab(hw_element,'diskElementName'):
                 disk_size += grab(hw_element,'diskVirtualQuantityInBytes')
+            if tenant_name is not None:
+                vm_data["tenant"] = {"name": tenant_name}
 
         # get disk size in GB
         p = math.pow(1024, 3)
-        vm_data['disk'] = round(disk_size / p, 0)
+        vm_data['disk'] = round(disk_size / p)
         # get vm platform Data
-        vm_data['platform'] = grab(vapp_vm.list_os_section(),'Description')
+        vm_data['platform'] = {"name": grab(vapp_vm.list_os_section(),'Description')}
 
-        vm_primary_ip4 = None
-        vm_primary_ip6 = None
         vm_nic_dict = dict()
-        nic_ips = dict()
-        count = 0
+        nic_ips = dict()       
         for nic in vapp_vm.list_nics():
-            count += 1
-            network = grab(nic,'network','.',)
+            network = grab(nic,'network','.','Unknown')
+            prefix = None
+            #if nic_ips[network] is None:
             nic_ips[network] = list()
-
+            ip_addr = grab(nic,'ip_address')
+            matched_prefix = self.return_longest_matching_prefix_for_ip(ip_interface(ip_addr))
+            if matched_prefix is not None:
+                prefix = matched_prefix.data["prefix"].prefixlen
+                ip_addr = f"{ip_addr}/{prefix}"
+            nic_ips[network].append(ip_addr)
+            vm_primary_ip4 = ip_addr 
+            mac_addr = grab(nic,'mac_address')
+            full_name = unquote(f"vNIC{grab(nic,'index')} ({network})")
+            vm_nic_data = {
+                "name": full_name,
+                "virtual_machine": None,
+                "mac_address": normalize_mac_address(mac_addr),
+                "description": full_name,
+                "enabled": grab(nic,'connected')
+            }
+            if ip_valid_to_add_to_netbox(ip_addr, self.permitted_subnets, full_name) is True:
+                vm_nic_dict[network] = vm_nic_data
+            else:
+                log.debug(f"Virtual machine '{vm_data['name']}' address '{ip_addr}' is not valid to add. Skipping")
+        # end for        
         log.debug(f"vm_data is '{vm_data}'")
+        log.debug(f"vm_nic_data: {vm_nic_dict}")
+        # add VM to inventory
+        self.add_device_vm_to_inventory(NBVM, object_data=vm_data, vnic_data=vm_nic_dict,
+                                        nic_ips=nic_ips, p_ipv4=vm_primary_ip4, p_ipv6=None)
 
-        #log.debug(f"Parsing VCD VM: {name}")
+
 
         # get VM power state
         #status = "active" if get_string_or_none(obj.active) else "offline"
@@ -580,6 +822,7 @@ class CheckCloudDirector(SourceBase):
         if object_type not in [NBDevice, NBVM]:
             raise ValueError(f"Object must be a '{NBVM.name}' or '{NBDevice.name}'.")
 
+        """
         if log.level == DEBUG3:
 
             log.debug3("function: add_device_vm_to_inventory")
@@ -589,7 +832,8 @@ class CheckCloudDirector(SourceBase):
             pprint.pprint(vnic_data)
             pprint.pprint(nic_ips)
             pprint.pprint(p_ipv4)
-            pprint.pprint(p_ipv6)
+            pprint.pprint(p_ipv6)        
+        """
 
         # check existing Devices for matches
         log.debug2(f"Trying to find a {object_type.name} based on the collected name, cluster, IP and MAC addresses")
