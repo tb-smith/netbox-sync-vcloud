@@ -275,6 +275,7 @@ class CheckCloudDirector(SourceBase):
         allvm_org_list = dict()
 
         for vdc in vdc_list:
+            
             log.info(f"Add virtual cluster for '{vdc_org.get_name()}")
             self.add_cluster(vdc,vdc_org.get_name())
             vdc_resource = vdc_org.get_vdc(vdc['name'])
@@ -291,7 +292,7 @@ class CheckCloudDirector(SourceBase):
                 vapp_vm = list()
                 log.info(f"Get vm data from vApp '{vapp_name}'")
                 for vm_res in vm_resource:
-                    self.add_virtual_machine(vm_res)        
+                    self.add_virtual_machine(vm_res,vdc['name'])        
                 #print(type(vm_resource))
                 break
             break
@@ -680,7 +681,7 @@ class CheckCloudDirector(SourceBase):
 
         self.permitted_clusters[name] = site_name
     
-    def add_virtual_machine(self, vm_res):
+    def add_virtual_machine(self, vm_res, cluster_name):
         """
         Parse a VDC VM add to NetBox once all data is gathered.
 
@@ -693,10 +694,17 @@ class CheckCloudDirector(SourceBase):
         vapp_vm = VM(self.vcloudClient, resource=vm_res)
         #vmName = 
         #allvm_org_list[vdc_name][vapp_name].append({
+ 
+
+        # check VM cluster
+        if cluster_name is None:
+            log.error(f"Requesting cluster for Virtual Machine '{name}' failed. Skipping.")
+            return
+       
         vm_data = {
             'name'    : vm_res.attrib["name"], 
             'status'  : "active" if vapp_vm.is_powered_on() else "offline",
-            'network' : None
+            "cluster": {"name": cluster_name},
         }
         disk_size = 0
         tenant_name = self.get_object_relation(vm_data["name"], "vm_tenant_relation")
@@ -717,7 +725,7 @@ class CheckCloudDirector(SourceBase):
         p = math.pow(1024, 3)
         vm_data['disk'] = round(disk_size / p)
         # get vm platform Data
-        vm_data['platform'] = {"name": grab(vapp_vm.list_os_section(),'Description')}
+        vm_data['platform'] = {"name": str(grab(vapp_vm.list_os_section(),'Description'))}
 
         vm_nic_dict = dict()
         nic_ips = dict()       
@@ -740,7 +748,7 @@ class CheckCloudDirector(SourceBase):
                 "virtual_machine": None,
                 "mac_address": normalize_mac_address(mac_addr),
                 "description": full_name,
-                "enabled": grab(nic,'connected')
+                "enabled": bool(grab(nic,'connected'))
             }
             if ip_valid_to_add_to_netbox(ip_addr, self.permitted_subnets, full_name) is True:
                 vm_nic_dict[network] = vm_nic_data
