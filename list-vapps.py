@@ -22,6 +22,9 @@ from pyvcloud.vcd.org import Org
 from pyvcloud.vcd.vdc import VDC
 from pyvcloud.vcd.vapp import VApp
 from pyvcloud.vcd.vm import VM
+from lxml import etree
+from lxml import objectify
+
 import requests
 
 # Collect arguments.
@@ -63,9 +66,15 @@ for vdc in vdc_list:
     vdc_name = (vdc['name'])
     vdc_resource = org.get_vdc(vdc_name)
     vdc = VDC(client, resource=vdc_resource)
+
     allvm_org_list[vdc_name] = {}
     print("Fetching vApps....")
     vapp_list = vdc.list_resources(EntityType.VAPP)
+    #vnet_list = list()
+    #vnet_list.append(vdc.list_orgvdc_direct_networks)
+    #vnet_list.append(vdc.list_orgvdc_routed_networks)
+    #vnet_list.append(vdc.list_orgvdc_isolated_networks)
+    #print(f"vdc net is: '{vnet_list}'")
     vm_list = list()
     for vapp in vapp_list:
         vapp_name = vapp.get('name')
@@ -75,7 +84,17 @@ for vdc in vdc_list:
 
         #print(f"vapp_obj:{vapp_obj}")
         #print(type(vm_resource))
+        vapp_net = vapp_obj.get_vapp_network_list()
+        for vnet in vapp_net:
+            vnet_prop = list()
+            vnet_data = vdc.get_routed_orgvdc_network(vnet['name'])
+            for child in vnet_data.iter('Configuration') :
+                print(f"tag: '{child.tag}', attrib: '{child.attrib}'" )
 
+            #zmask = vnet_data.iter('IpScope')
+            #zmask = vnet_data.xpath("./OrgVdcNetwork")
+ 
+            #print(f"vDC net for '{vapp_name}':'{vnet['name']}' -- \nMask:'{xroot}'")
         print("Fetching VM...")
         vm_resource = vapp_obj.get_all_vms()
         # get vapp vm count first
