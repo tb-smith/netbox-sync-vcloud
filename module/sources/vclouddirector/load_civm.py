@@ -48,6 +48,10 @@ from module.netbox.object_classes import (
 
 # Import Modules for Vcloud Director
 import sys
+import requests
+import xmltodict
+from lxml import etree
+from lxml import objectify
 from pyvcloud.vcd.client import BasicLoginCredentials
 from pyvcloud.vcd.client import Client
 from pyvcloud.vcd.client import EntityType
@@ -55,7 +59,6 @@ from pyvcloud.vcd.org import Org
 from pyvcloud.vcd.vdc import VDC
 from pyvcloud.vcd.vapp import VApp
 from pyvcloud.vcd.vm import VM
-import requests
 
 log = get_logger()
 
@@ -272,8 +275,6 @@ class CheckCloudDirector(SourceBase):
 
         vdc_list = self.get_vdc_list(vdc_org)
 
-        allvm_org_list = dict()
-
         for vdc in vdc_list:
             
             log.info(f"Add virtual cluster for '{vdc_org.get_name()}")
@@ -285,6 +286,14 @@ class CheckCloudDirector(SourceBase):
                 vapp_name = vapp.get('name')
                 vapp_resource = vdc_obj.get_vapp(vapp_name)
                 vapp_obj = VApp(self.vcloudClient, resource=vapp_resource)
+
+                log.info(f"Get Information About vAppNetwork for VApp: '{vapp_name}'")
+                vapp_net = vapp_obj.get_vapp_network_list()
+                for vnet in vapp_net:                    
+                    vnet_data = vdc_obj.get_routed_orgvdc_network(vnet['name'])
+                    self.add_vcdnetwork(self, vnet_data)
+
+
                 vm_resource = vapp_obj.get_all_vms()
                 log.debug(f"Found '{len(vm_resource)}' vm in '{vapp_name}'")
                 # get vapp vm count first
@@ -681,6 +690,23 @@ class CheckCloudDirector(SourceBase):
 
         self.permitted_clusters[name] = site_name
     
+
+    def add_vcdnetwork(self, vnet_data: objectify.ObjectifiedElement, Des=None):
+        
+        xmlRaw = etree.tostring(vnet_data)
+        vnet_dict = xmltodict.parse(xmlRaw)
+        subPrefix = vnet_dict.get('OrgVdcNetwork',{}).get('Configuration',{}).get('IpScopes',{}).get('IpScope',{}).get('SubnetPrefixLength',{})
+        gw = vnet_dict.get('OrgVdcNetwork',{}).get('Configuration',{}).get('IpScopes',{}).get('IpScope',{}).get('Gateway',{})   
+        name = vnet_dict.get('OrgVdcNetwork',{}).get('@name', None)         
+        #print(f"mask:{mask}")
+        data = {
+            "prefix": f"{gw}/{subPrefix}",
+            "description": name    
+        }
+        log.debug(f"Create prefix for Net: {name}")
+        self.inventory.add_update_object(NBPrefix, data, source=self)
+    
+
     def add_virtual_machine(self, vm_res, cluster_name):
         """
         Parse a VDC VM add to NetBox once all data is gathered.

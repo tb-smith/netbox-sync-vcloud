@@ -1,30 +1,97 @@
-[{"name": "ms-ts-lst-tech", "active": "False", "hardware": [
-        {"cpuVirtualQuantity": 4, "cpuCoresPerSocket": 1
+{
+    "OrgVdcNetwork": {
+        "@xmlns": "http://www.vmware.com/vcloud/v1.5",
+        "@xmlns:vmext": "http://www.vmware.com/vcloud/extension/v1.5",
+        "@xmlns:ovf": "http://schemas.dmtf.org/ovf/envelope/1",
+        "@xmlns:vssd": "http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_VirtualSystemSettingData",
+        "@xmlns:common": "http://schemas.dmtf.org/wbem/wscim/1/common",
+        "@xmlns:rasd": "http://schemas.dmtf.org/wbem/wscim/1/cim-schema/2/CIM_ResourceAllocationSettingData",
+        "@xmlns:vmw": "http://www.vmware.com/schema/ovf",
+        "@xmlns:ovfenv": "http://schemas.dmtf.org/ovf/environment/1",
+        "@xmlns:ns9": "http://www.vmware.com/vcloud/versions",
+        "@status": "1",
+        "@name": "SAP-NETWORK",
+        "@id": "urn:vcloud:network:f74bb001-433a-4520-9e7d-61a56ae67469",
+        "@href": "https://vcd.technoserv.cloud/api/admin/network/f74bb001-433a-4520-9e7d-61a56ae67469",
+        "@type": "application/vnd.vmware.vcloud.orgVdcNetwork+xml",
+        "Link": [
+            {
+                "@rel": "up",
+                "@href": "https://vcd.technoserv.cloud/api/vdc/675ad48d-f975-4550-bfea-8a20aeceb76c",
+                "@type": "application/vnd.vmware.vcloud.vdc+xml"
+            },
+            {
+                "@rel": "up",
+                "@href": "https://vcd.technoserv.cloud/api/vdc/675ad48d-f975-4550-bfea-8a20aeceb76c",
+                "@type": "application/vnd.vmware.vcloud.vdc+json"
+            },
+            {
+                "@rel": "down",
+                "@href": "https://vcd.technoserv.cloud/api/admin/network/f74bb001-433a-4520-9e7d-61a56ae67469/metadata",
+                "@type": "application/vnd.vmware.vcloud.metadata+xml"
+            },
+            {
+                "@rel": "down",
+                "@href": "https://vcd.technoserv.cloud/api/admin/network/f74bb001-433a-4520-9e7d-61a56ae67469/metadata",
+                "@type": "application/vnd.vmware.vcloud.metadata+json"
+            },
+            {
+                "@rel": "down",
+                "@href": "https://vcd.technoserv.cloud/api/admin/network/f74bb001-433a-4520-9e7d-61a56ae67469/allocatedAddresses/",
+                "@type": "application/vnd.vmware.vcloud.allocatedNetworkAddress+xml"
+            },
+            {
+                "@rel": "down",
+                "@href": "https://vcd.technoserv.cloud/api/admin/network/f74bb001-433a-4520-9e7d-61a56ae67469/allocatedAddresses/",
+                "@type": "application/vnd.vmware.vcloud.allocatedNetworkAddress+json"
+            }
+        ],
+        "Description": "None",
+        "Configuration": {
+            "IpScopes": {
+                "IpScope": {
+                    "IsInherited": "false",
+                    "Gateway": "10.131.204.1",
+                    "Netmask": "255.255.255.0",
+                    "SubnetPrefixLength": "24",
+                    "Dns1": "10.130.3.11",
+                    "Dns2": "10.130.3.12",
+                    "DnsSuffix": "rainvest.local",
+                    "IsEnabled": "true",
+                    "IpRanges": {
+                        "IpRange": {
+                            "StartAddress": "10.131.204.2",
+                            "EndAddress": "10.131.204.254"
+                        }
+                    }
+                }
+            },
+            "FenceMode": "natRouted",
+            "RetainNetInfoAcrossDeployments": "false",
+            "SubInterface": "false",
+            "DistributedInterface": "false",
+            "ServiceInterface": "false",
+            "GuestVlanAllowed": "false",
+            "Connected": "true",
+            "DualStackNetwork": "false"
         },
-        {"memoryVirtualQuantityInMb": 8192
+        "ProviderInfo": "VirtualWire:virtualwire-838 on (com.vmware.vcloud.entity.vimserver:ebac1339-4408-4a80-89b1-93c913a1e930)",
+        "EdgeGateway": {
+            "@href": "https://vcd.technoserv.cloud/api/admin/edgeGateway/1f717f5a-3cdf-408a-a9de-46433dd57268",
+            "@id": "1f717f5a-3cdf-408a-a9de-46433dd57268",
+            "@type": "application/vnd.vmware.admin.edgeGateway+xml",
+            "@name": "Edge-Rusagro-Invest"
         },
-        {"diskElementName": "Hard disk 1", "diskVirtualQuantityInBytes": 32212254720
-        },
-        {"diskElementName": "Hard disk 2", "diskVirtualQuantityInBytes": 128849018880
+        "IsShared": "true",
+        "VimPortGroupRef": {
+            "VimServerRef": {
+                "@href": "https://vcd.technoserv.cloud/api/admin/extension/vimServer/ebac1339-4408-4a80-89b1-93c913a1e930",
+                "@id": "urn:vcloud:vimserver:ebac1339-4408-4a80-89b1-93c913a1e930",
+                "@type": "application/vnd.vmware.admin.vmwvirtualcenter+xml",
+                "@name": ""
+            },
+            "MoRef": "virtualwire-838",
+            "VimObjectType": "VIRTUAL_WIRE"
         }
-    ], "platform": {"Info": "Specifies the operating system installed", "Description": "CentOS 4/5 or later (64-bit)"
-    }, "network": [
-        {"index": 0, "connected": "true", "primary": "True", "adapter_type": "VMXNET3", "network": "NON-SAP-NETWORK", "ip_address_mode": "POOL", "ip_address": "10.131.205.9", "mac_address": "00: 50: 56: 01: 24: 26"
-        }
-    ]
-},
-{"name": "srvsap17_ot", "active": "True", "hardware": [
-        {"cpuVirtualQuantity": 4, "cpuCoresPerSocket": 4
-        },
-        {"memoryVirtualQuantityInMb": 16384
-        },
-        {"diskElementName": "Hard disk 1", "diskVirtualQuantityInBytes": 64424509440
-        },
-        {"diskElementName": "Hard disk 2", "diskVirtualQuantityInBytes": 161061273600
-        }
-    ], "platform": {"Info": "Specifies the operating system installed", "Description": "Microsoft Windows Server 2012 (64-bit)"
-    }, "network": [
-        {"index": 0, "connected": "true", "primary": "True", "adapter_type": "VMXNET3", "network": "SAP-NETWORK", "ip_address_mode": "MANUAL", "ip_address": "10.131.204.51", "mac_address": "00: 50: 56: 01: 5a: 5d"
-        }
-    ]
-}]
+    }
+}

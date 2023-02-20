@@ -15,6 +15,7 @@
 # Illustrates how to list all vApps within a single vDC.
 
 import sys
+import xmltodict
 from pyvcloud.vcd.client import BasicLoginCredentials
 from pyvcloud.vcd.client import Client
 from pyvcloud.vcd.client import EntityType
@@ -82,12 +83,20 @@ for vdc in vdc_list:
 
         vapp_obj = VApp(client, resource=vapp_resource)
 
-        #print(f"vapp_obj:{vapp_obj}")
         #print(type(vm_resource))
         vapp_net = vapp_obj.get_vapp_network_list()
         for vnet in vapp_net:
             vnet_prop = list()
             vnet_data = vdc.get_routed_orgvdc_network(vnet['name'])
+
+            if isinstance(vnet_data,objectify.ObjectifiedElement):
+                xmlRaw = etree.tostring(vnet_data)
+                vnet_dict = xmltodict.parse(xmlRaw)
+                mask = vnet_dict.get('OrgVdcNetwork',{}).get('Configuration',{}).get('IpScopes',{}).get('IpScope',{}).get('SubnetPrefixLength',{})
+                gw   = vnet_dict.get('OrgVdcNetwork',{}).get('Configuration',{}).get('IpScopes',{}).get('IpScope',{}).get('Gateway',{})
+                name = vnet_dict.get('OrgVdcNetwork',{}).get('@name', None)
+                print(f"mask:{mask}, gw:{gw}, netName:\n {name}")
+
             for child in vnet_data.iter('Configuration') :
                 print(f"tag: '{child.tag}', attrib: '{child.attrib}'" )
 
