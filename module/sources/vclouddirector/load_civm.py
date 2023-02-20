@@ -12,7 +12,7 @@ import glob
 import json
 import re
 import math
-from ipaddress import ip_address, ip_network, ip_interface
+from ipaddress import ip_address, ip_network, ip_interface, IPv4Network
 from urllib.parse import unquote
 #from xml.etree.ElementTree import tostring
 
@@ -291,7 +291,7 @@ class CheckCloudDirector(SourceBase):
                 vapp_net = vapp_obj.get_vapp_network_list()
                 for vnet in vapp_net:                    
                     vnet_data = vdc_obj.get_routed_orgvdc_network(vnet['name'])
-                    self.add_vcdnetwork(self, vnet_data)
+                    self.add_vcdnetwork(vnet_data)
 
 
                 vm_resource = vapp_obj.get_all_vms()
@@ -700,7 +700,7 @@ class CheckCloudDirector(SourceBase):
         name = vnet_dict.get('OrgVdcNetwork',{}).get('@name', None)         
         #print(f"mask:{mask}")
         data = {
-            "prefix": f"{gw}/{subPrefix}",
+            "prefix": IPv4Network(f"{gw}/{subPrefix}"),
             "description": name    
         }
         log.debug(f"Create prefix for Net: {name}")
