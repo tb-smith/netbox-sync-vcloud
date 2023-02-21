@@ -143,7 +143,8 @@ class CheckCloudDirector(SourceBase):
         self.init_successful = True
 
         self.permitted_clusters = dict()
-        # self.interface_adapter_type_dict = dict()
+
+        self.vdc_network_info = dict()
 
 
     def parse_config_settings(self, config_settings):
@@ -288,23 +289,28 @@ class CheckCloudDirector(SourceBase):
                 vapp_obj = VApp(self.vcloudClient, resource=vapp_resource)
 
                 log.info(f"Get Information About vAppNetwork for VApp: '{vapp_name}'")
-                vapp_net = vapp_obj.get_vapp_network_list()
-                for vnet in vapp_net:                    
-                    vnet_data = vdc_obj.get_routed_orgvdc_network(vnet['name'])
-                    self.add_vcdnetwork(vnet_data)
-
+                try:
+                    vapp_net = vapp_obj.get_vapp_network_list()
+                except:
+                    log.error(f"Fail Get networking information for vApp:'{vapp_name}'")
+                    pass
+                    
+                for vnet in vapp_net: 
+                    try:                   
+                        vnet_data = vdc_obj.get_routed_orgvdc_network(vnet['name'])                    
+                        self.vdc_network_info[vnet['name']] = self.get_vcd_network(vnet_data)
+                    except:
+                        log.debug(f"Fail get data For routed_orgvdc_network'{vnet['name']}'")
 
                 vm_resource = vapp_obj.get_all_vms()
                 log.debug(f"Found '{len(vm_resource)}' vm in '{vapp_name}'")
-                # get vapp vm count first
-                #allvm_org_list[vdc['name']][vapp_name] = []
-                vapp_vm = list()
+                
                 log.info(f"Get vm data from vApp '{vapp_name}'")
                 for vm_res in vm_resource:
                     self.add_virtual_machine(vm_res,vdc['name'])        
                 #print(type(vm_resource))
-                break
-            break
+                #break
+            #break
 
         #for view_name, view_details in object_mapping.items():
         self.vcloudClient.logout()
@@ -691,20 +697,19 @@ class CheckCloudDirector(SourceBase):
         self.permitted_clusters[name] = site_name
     
 
-    def add_vcdnetwork(self, vnet_data: objectify.ObjectifiedElement, Des=None):
+    def get_vcd_network(self, vnet_data: objectify.ObjectifiedElement):
         
+        log.debug(f"Get prefix for Vcd Network....")
         xmlRaw = etree.tostring(vnet_data)
         vnet_dict = xmltodict.parse(xmlRaw)
         subPrefix = vnet_dict.get('OrgVdcNetwork',{}).get('Configuration',{}).get('IpScopes',{}).get('IpScope',{}).get('SubnetPrefixLength',{})
         gw = vnet_dict.get('OrgVdcNetwork',{}).get('Configuration',{}).get('IpScopes',{}).get('IpScope',{}).get('Gateway',{})   
         name = vnet_dict.get('OrgVdcNetwork',{}).get('@name', None)         
         #print(f"mask:{mask}")
-        data = {
-            "prefix": IPv4Network(f"{gw}/{subPrefix}"),
-            "description": name    
-        }
-        log.debug(f"Create prefix for Net: {name}")
-        self.inventory.add_update_object(NBPrefix, data, source=self)
+        network = IPv4Network(f"{gw}/{subPrefix}",strict=False)
+        
+        return network
+        #self.inventory.add_update_object(NBPrefix, data=data, source=self)
     
 
     def add_virtual_machine(self, vm_res, cluster_name):
@@ -724,7 +729,7 @@ class CheckCloudDirector(SourceBase):
 
         # check VM cluster
         if cluster_name is None:
-            log.error(f"Requesting cluster for Virtual Machine '{name}' failed. Skipping.")
+            log.error(f"Requesting cluster for Virtual Machine in cluster '{cluster_name}' failed. Skipping.")
             return
        
         vm_data = {
@@ -761,10 +766,15 @@ class CheckCloudDirector(SourceBase):
             #if nic_ips[network] is None:
             nic_ips[network] = list()
             ip_addr = grab(nic,'ip_address')
-            matched_prefix = self.return_longest_matching_prefix_for_ip(ip_interface(ip_addr))
-            if matched_prefix is not None:
-                prefix = matched_prefix.data["prefix"].prefixlen
-                ip_addr = f"{ip_addr}/{prefix}"
+            prefixNet = self.vdc_network_info.get(network,None)
+            if prefixNet is None:            
+                matched_prefix = self.return_longest_matching_prefix_for_ip(ip_interface(ip_addr))
+                prefix = 32 if matched_prefix is None else matched_prefix.data["prefix"].prefixlen
+            else:
+                prefix = prefixNet.prefixlen    
+
+            ip_addr = f"{ip_addr}/{prefix}"
+
             nic_ips[network].append(ip_addr)
             vm_primary_ip4 = ip_addr 
             mac_addr = grab(nic,'mac_address')
