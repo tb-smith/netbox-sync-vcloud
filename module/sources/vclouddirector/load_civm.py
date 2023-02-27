@@ -1,20 +1,18 @@
 # -*- coding: utf-8 -*-
-#  for load data from vmWare vCloud Director try onne
+#  for load data from vmWare vCloud Director t
 #  netbox-sync.py
 #
 #  This work is licensed under the terms of the MIT license.
 #  For a copy, see file LICENSE.txt included in this
 #  repository or visit: <https://opensource.org/licenses/MIT>.
-# based on Pyvcloud Examples list-vapps.py  
+#  based on Pyvcloud Examples list-vapps.py  and pull request from https://github.com/dupondje/netbox-sync.git
 
 import os
-import glob
-import json
 import re
 import math
 from ipaddress import ip_address, ip_network, ip_interface, IPv4Network
 from urllib.parse import unquote
-#from xml.etree.ElementTree import tostring
+#
 
 from packaging import version
 
@@ -65,7 +63,7 @@ log = get_logger()
 
 class CheckCloudDirector(SourceBase):
     """
-    Source class to import check_redfish inventory files
+    Source class to import Vcloud Director inventory files
     """
 
     dependent_netbox_objects = [
