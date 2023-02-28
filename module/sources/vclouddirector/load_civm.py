@@ -338,7 +338,7 @@ class CheckCloudDirector(SourceBase):
             log_bodies=True)
         client.set_highest_supported_version()
         client.set_credentials(BasicLoginCredentials(settings['username'], settings['vcloud_org'], settings['password']))
-        self.enabled = True
+        #self.enabled = True
         self.vcloudClient = client
 
     def get_vcloud_org(self, client):
