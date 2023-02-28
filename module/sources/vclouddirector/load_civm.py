@@ -95,6 +95,7 @@ class CheckCloudDirector(SourceBase):
         "password": None,
         "vcloud_org": None,
         "permitted_subnets": None,
+        "excluded_subnets": None,
         "overwrite_host_name": False,
         "overwrite_interface_name": False,
         "overwrite_interface_attributes": True,
@@ -784,7 +785,7 @@ class CheckCloudDirector(SourceBase):
                 "description": full_name,
                 "enabled": bool(grab(nic,'connected'))
             }
-            if ip_valid_to_add_to_netbox(ip_addr, self.permitted_subnets, full_name) is True:
+            if ip_valid_to_add_to_netbox(ip_addr, self.permitted_subnets, self.excluded_subnets, full_name) is True:
                 vm_nic_dict[network] = vm_nic_data
             else:
                 log.debug(f"Virtual machine '{vm_data['name']}' address '{ip_addr}' is not valid to add. Skipping")
