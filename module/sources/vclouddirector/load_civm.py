@@ -307,8 +307,8 @@ class CheckCloudDirector(SourceBase):
                 log.info(f"Get vm data from vApp '{vapp_name}'")
                 for vm_res in vm_resource:
                     self.add_virtual_machine(vm_res,vdc['name'])        
-                #print(type(vm_resource))
                 #break
+                #print(type(vm_resource))
             #break
 
         #for view_name, view_details in object_mapping.items():
@@ -673,7 +673,7 @@ class CheckCloudDirector(SourceBase):
 
 
         # need add mapping for site name from cfg
-        site_name = self.get_site_name(NBCluster, name)       
+        #site_name = self.get_site_name(NBCluster, name)       
 
         data = {
             "name": name,
@@ -730,14 +730,16 @@ class CheckCloudDirector(SourceBase):
         if cluster_name is None:
             log.error(f"Requesting cluster for Virtual Machine in cluster '{cluster_name}' failed. Skipping.")
             return
-       
         vm_data = {
             'name'    : vm_res.attrib["name"], 
             'status'  : "active" if vapp_vm.is_powered_on() else "offline",
             "cluster": {"name": cluster_name},
         }
+        site_name = self.get_site_name(NBCluster, cluster_name)
+        if site_name is not None:
+            vm_data["cluster"]["site"] = {"name": site_name}
         disk_size = 0
-        tenant_name = self.get_object_relation(vm_data["name"], "vm_tenant_relation")
+        tenant_name = self.get_object_relation(cluster_name, "vm_tenant_relation")
         for hw_element in vapp_vm.list_virtual_hardware_section(is_disk=True):
             vcpus = grab(hw_element,'cpuVirtualQuantity')
             if vcpus:
@@ -1009,7 +1011,6 @@ class CheckCloudDirector(SourceBase):
                     device_vm_object.update(data={f"primary_ip{ip_version}": ip_object})
 
         return
-
 
     def update_basic_data(self):
         """
