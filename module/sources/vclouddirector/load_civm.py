@@ -658,8 +658,7 @@ class CheckCloudDirector(SourceBase):
 
         name = get_string_or_none(grab(obj, "name"))
 
-        site_name = self.get_object_relation(name, 'cluster_site_relation')
-        log.debug(f"Try get '{self.settings['vcloud_org']}' site_relation for '{self.settings['cluster_site_relation']}'  is a '{site_name}'")
+        #site_name = self.get_object_relation(name, 'cluster_site_relation')
 
         #group = get_string_or_none(grab(obj, "parent.parent.name"))
 
@@ -670,10 +669,9 @@ class CheckCloudDirector(SourceBase):
         # need add filter
         #if self.passes_filter(name, self.vdc_include_filter, self.vdc_exclude_filter) is False:
         #    return
-
-
-        # need add mapping for site name from cfg
-        #site_name = self.get_site_name(NBCluster, name)       
+        
+        site_name = self.get_site_name(NBCluster, name)       
+        log.debug(f"Try get '{self.settings['vcloud_org']}' site_relation for '{self.settings['cluster_site_relation']}'  is a '{site_name}'")
 
         data = {
             "name": name,
@@ -736,7 +734,7 @@ class CheckCloudDirector(SourceBase):
             "cluster": {"name": cluster_name},
         }
         site_name = self.get_site_name(NBDevice, vm_data["name"], cluster_name)
-        #site_name = self.get_object_relation(cluster_name, 'cluster_site_relation')
+        
         if site_name is not None:
             vm_data["cluster"]["site"] = {"name": site_name}
         else:
