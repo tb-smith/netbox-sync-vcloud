@@ -22,7 +22,8 @@ RUN chown -R netbox-sync:netbox-sync /app
 RUN cd /app && \
     pip3 install --upgrade pip && \
     pip3 install wheel && \
-    pip3 install -r requirements.txt && \
+    pip3 install -r requirements.txt 
+RUN cd /app && \
     pip3 install --upgrade git+https://github.com/vmware/vsphere-automation-sdk-python.git
 
 USER netbox-sync
