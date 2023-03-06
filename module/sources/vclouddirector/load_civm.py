@@ -735,10 +735,12 @@ class CheckCloudDirector(SourceBase):
             'status'  : "active" if vapp_vm.is_powered_on() else "offline",
             "cluster": {"name": cluster_name},
         }
-        #site_name = self.get_site_name(NBCluster, cluster_name)
-        site_name = self.get_object_relation(cluster_name, 'cluster_site_relation')
+        site_name = self.get_site_name(NBDevice, vm_data["name"], cluster_name)
+        #site_name = self.get_object_relation(cluster_name, 'cluster_site_relation')
         if site_name is not None:
             vm_data["cluster"]["site"] = {"name": site_name}
+        else:
+            log.warning(f"can't find Site for VM: '{vm_data}'")
         disk_size = 0
         tenant_name = self.get_object_relation(cluster_name, "vm_tenant_relation")
         for hw_element in vapp_vm.list_virtual_hardware_section(is_disk=True):
