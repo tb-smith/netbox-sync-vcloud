@@ -758,7 +758,7 @@ class CheckCloudDirector(SourceBase):
         vm_data['disk'] = round(disk_size / p)
         # get vm platform Data
         vm_data['platform'] = {"name": str(grab(vapp_vm.list_os_section(),'Description'))}
-
+        vm_primary_ip4 = None
         vm_nic_dict = dict()
         nic_ips = dict()       
         for nic in vapp_vm.list_nics():
@@ -769,7 +769,7 @@ class CheckCloudDirector(SourceBase):
             ip_addr = grab(nic,'ip_address')
             prefixNet = self.vdc_network_info.get(network,None)
             if ip_addr is None:
-                log.debug(f"IP is None for '{nic}' Skeping")
+                log.debug(f"IP is None for '{nic}' Skeeping")
                 continue
             ip_vm = ip_interface(ip_addr)
             if prefixNet is None:            
@@ -799,6 +799,10 @@ class CheckCloudDirector(SourceBase):
         log.debug(f"vm_data is '{vm_data}'")
         log.debug(f"vm_nic_data: {vm_nic_dict}")
         # add VM to inventory
+        if vm_primary_ip4 is None:
+            log.info(f"SKEEP add vm: '{vm_data['name']}', Primary IP is Nome")
+            log.debug(f"FAIL get primary IP for vm:'{vm_data}'")
+            return
         self.add_device_vm_to_inventory(NBVM, object_data=vm_data, vnic_data=vm_nic_dict,
                                         nic_ips=nic_ips, p_ipv4=vm_primary_ip4, p_ipv6=None)
 
