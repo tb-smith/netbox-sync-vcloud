@@ -768,16 +768,20 @@ class CheckCloudDirector(SourceBase):
             nic_ips[network] = list()
             ip_addr = grab(nic,'ip_address')
             prefixNet = self.vdc_network_info.get(network,None)
+            if ip_addr is None:
+                log.debug(f"IP is None for '{nic}' Skeping")
+                continue
+            ip_vm = ip_interface(ip_addr)
             if prefixNet is None:            
-                matched_prefix = self.return_longest_matching_prefix_for_ip(ip_interface(ip_addr))
+                matched_prefix = self.return_longest_matching_prefix_for_ip(ip_vm)
                 prefix = 32 if matched_prefix is None else matched_prefix.data["prefix"].prefixlen
             else:
                 prefix = prefixNet.prefixlen    
 
             ip_addr = f"{ip_addr}/{prefix}"
-
             nic_ips[network].append(ip_addr)
             vm_primary_ip4 = ip_addr 
+
             mac_addr = grab(nic,'mac_address')
             full_name = unquote(f"vNIC{grab(nic,'index')} ({network})")
             vm_nic_data = {
