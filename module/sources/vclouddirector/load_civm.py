@@ -10,6 +10,7 @@
 import os
 import re
 import math
+import pprint
 from ipaddress import ip_address, ip_network, ip_interface, IPv4Network
 from urllib.parse import unquote
 #
@@ -307,9 +308,9 @@ class CheckCloudDirector(SourceBase):
                 log.info(f"Get vm data from vApp '{vapp_name}'")
                 for vm_res in vm_resource:
                     self.add_virtual_machine(vm_res,vdc['name'])        
-                #break
+                break
                 #print(type(vm_resource))
-            #break
+            break
 
         #for view_name, view_details in object_mapping.items():
         self.vcloudClient.logout()
@@ -671,7 +672,7 @@ class CheckCloudDirector(SourceBase):
         #    return
         
         site_name = self.get_site_name(NBCluster, name)       
-        log.debug(f"Try get '{self.settings['vcloud_org']}' site_relation for '{self.settings['cluster_site_relation']}'  is a '{site_name}'")
+        log.debug(f"Try get '{self.vcloud_org}' site_relation for '{self.cluster_site_relation}'  is a '{site_name}'")
 
         data = {
             "name": name,
@@ -684,10 +685,10 @@ class CheckCloudDirector(SourceBase):
         if tenant_name is not None:
             data["tenant"] = {"name": tenant_name}
         #
-        #cluster_tags = self.get_object_relation(name, "cluster_tag_relation")
-        #cluster_tags.extend(self.get_object_tags(obj))
-        #if len(cluster_tags) > 0:
-        #    data["tags"] = cluster_tags
+        cluster_tags = self.get_object_relation(name, "cluster_tag_relation")
+        cluster_tags.extend(self.get_object_tags(obj))
+        if len(cluster_tags) > 0:
+            data["tags"] = cluster_tags
 
         self.inventory.add_update_object(NBCluster, data=data, source=self)
 
@@ -809,17 +810,16 @@ class CheckCloudDirector(SourceBase):
 
 
 
-        # get VM power state
-        #status = "active" if get_string_or_none(obj.active) else "offline"
     def add_device_vm_to_inventory(self, object_type, object_data, pnic_data=None, vnic_data=None,
-                                nic_ips=None, p_ipv4=None, p_ipv6=None):
+                                   nic_ips=None, p_ipv4=None, p_ipv6=None):
         """
         Add/update device/VM object in inventory based on gathered data.
 
         Try to find object first based on the object data, interface MAC addresses and primary IPs.
             1. try to find by name and cluster/site
             2. try to find by mac addresses interfaces
-            3. try to find by primary IP
+            3. try to find by serial number (1st) or asset tag (2nd) (ESXi host)
+            4. try to find by primary IP
 
         IP addresses for each interface are added here as well. First they will be checked and added
         if all checks pass. For each IP address a matching IP prefix will be searched for. First we
@@ -876,7 +876,6 @@ class CheckCloudDirector(SourceBase):
         if object_type not in [NBDevice, NBVM]:
             raise ValueError(f"Object must be a '{NBVM.name}' or '{NBDevice.name}'.")
 
-        """
         if log.level == DEBUG3:
 
             log.debug3("function: add_device_vm_to_inventory")
@@ -886,8 +885,7 @@ class CheckCloudDirector(SourceBase):
             pprint.pprint(vnic_data)
             pprint.pprint(nic_ips)
             pprint.pprint(p_ipv4)
-            pprint.pprint(p_ipv6)        
-        """
+            pprint.pprint(p_ipv6)
 
         # check existing Devices for matches
         log.debug2(f"Trying to find a {object_type.name} based on the collected name, cluster, IP and MAC addresses")
@@ -906,9 +904,24 @@ class CheckCloudDirector(SourceBase):
             # on VMs vnic data is used, on physical devices pnic data is used
             mac_source_data = vnic_data if object_type == NBVM else pnic_data
 
-            nic_macs = [x.get("mac_address") for x in mac_source_data.values() if x.get("mac_address") is not None]
+            nic_macs = [x.get("mac_address") for x in mac_source_data.values()]
 
             device_vm_object = self.get_object_based_on_macs(object_type, nic_macs)
+
+        # look for devices with same serial or asset tag
+        if object_type == NBDevice:
+
+            if device_vm_object is None and object_data.get("serial") is not None and \
+                    bool(self.match_host_by_serial) is True:
+                log.debug2(f"No match found. Trying to find {object_type.name} based on serial number")
+
+                device_vm_object = self.inventory.get_by_data(object_type, data={"serial": object_data.get("serial")})
+
+            if device_vm_object is None and object_data.get("asset_tag") is not None:
+                log.debug2(f"No match found. Trying to find {object_type.name} based on asset tag")
+
+                device_vm_object = self.inventory.get_by_data(object_type,
+                                                              data={"asset_tag": object_data.get("asset_tag")})
 
         if device_vm_object is not None:
             log.debug2("Found a matching %s object: %s" %
@@ -970,7 +983,10 @@ class CheckCloudDirector(SourceBase):
 
             # add/update interface with retrieved data
             nic_object, ip_address_objects = self.add_update_interface(nic_object_dict.get(int_name), device_vm_object,
-                                                                       int_data, nic_ips.get(int_name, list()))
+                                                                       int_data, nic_ips.get(int_name, list()),
+                                                                       disable_vlan_sync=True,
+                                                                       ip_tenant_inheritance_order=
+                                                                       None)
 
             # add all interface IPs
             for ip_object in ip_address_objects:
@@ -1020,6 +1036,7 @@ class CheckCloudDirector(SourceBase):
                     device_vm_object.update(data={f"primary_ip{ip_version}": ip_object})
 
         return
+
 
     def update_basic_data(self):
         """
