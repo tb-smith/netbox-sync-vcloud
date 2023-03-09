@@ -18,7 +18,7 @@ from urllib.parse import unquote
 from packaging import version
 
 from module.sources.common.source_base import SourceBase
-from module.common.logging import get_logger
+from module.common.logging import get_logger, DEBUG3
 from module.common.misc import grab, get_string_or_none
 from module.common.support import normalize_mac_address, ip_valid_to_add_to_netbox
 from module.netbox.object_classes import (
