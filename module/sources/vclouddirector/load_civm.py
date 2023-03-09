@@ -308,9 +308,9 @@ class CheckCloudDirector(SourceBase):
                 log.info(f"Get vm data from vApp '{vapp_name}'")
                 for vm_res in vm_resource:
                     self.add_virtual_machine(vm_res,vdc['name'])        
-                break
+                    break
                 #print(type(vm_resource))
-            break
+                break
 
         #for view_name, view_details in object_mapping.items():
         self.vcloudClient.logout()
