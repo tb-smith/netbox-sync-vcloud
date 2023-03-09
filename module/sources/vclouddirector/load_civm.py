@@ -774,7 +774,7 @@ class CheckCloudDirector(SourceBase):
                 continue
             ip_vm = ip_interface(ip_addr)
             if prefixNet is None:            
-                matched_prefix = self.return_longest_matching_prefix_for_ip(ip_vm)
+                matched_prefix = self.return_longest_matching_prefix_for_ip(ip_vm, site_name)
                 prefix = 32 if matched_prefix is None else matched_prefix.data["prefix"].prefixlen
             else:
                 prefix = prefixNet.prefixlen    
