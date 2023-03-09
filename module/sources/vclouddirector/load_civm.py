@@ -736,7 +736,8 @@ class CheckCloudDirector(SourceBase):
         else:
             log.warning(f"can't find Site for VM: '{vm_data}'")
         disk_size = 0
-        tenant_name = self.get_object_relation(cluster_name, "vm_tenant_relation")
+        tenant_name = self.get_object_relation(vm_data["name"], "vm_tenant_relation")
+        log.debug(f"Tenamt for VM: '{vm_data['name']}' is: '{tenant_name}'")
         for hw_element in vapp_vm.list_virtual_hardware_section(is_disk=True):
             vcpus = grab(hw_element,'cpuVirtualQuantity')
             if vcpus:
