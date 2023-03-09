@@ -685,11 +685,6 @@ class CheckCloudDirector(SourceBase):
         if tenant_name is not None:
             data["tenant"] = {"name": tenant_name}
         #
-        cluster_tags = self.get_object_relation(name, "cluster_tag_relation")
-        cluster_tags.extend(self.get_object_tags(obj))
-        if len(cluster_tags) > 0:
-            data["tags"] = cluster_tags
-
         self.inventory.add_update_object(NBCluster, data=data, source=self)
 
         self.permitted_clusters[name] = site_name
