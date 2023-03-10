@@ -1047,7 +1047,7 @@ class CheckCloudDirector(SourceBase):
         self.inventory.add_update_object(NBTag, data={
             "name": self.source_tag,
             "description": f"Marks objects synced from vCloud Director '{self.name}' "
-                           f"({self.host_fqdn}) to this NetBox Instance."
+                           f"({self.vcloud_org}) to this NetBox Instance."
         })
 
         # update virtual site if present
