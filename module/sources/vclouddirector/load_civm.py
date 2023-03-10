@@ -771,13 +771,14 @@ class CheckCloudDirector(SourceBase):
                 log.debug(f"IP is None for '{nic}' Skeeping")
                 continue
             ip_vm = ip_interface(ip_addr)
+            # set prefix only from Edge GW
             if prefixNet is None:            
                 matched_prefix = self.return_longest_matching_prefix_for_ip(ip_vm, site_name)
                 prefix = 32 if matched_prefix is None else matched_prefix.data["prefix"].prefixlen
             else:
                 prefix = prefixNet.prefixlen    
+                ip_addr = f"{ip_addr}/{prefix}"
 
-            ip_addr = f"{ip_addr}/{prefix}"
             nic_ips[network].append(ip_addr)
             vm_primary_ip4 = ip_addr 
 
@@ -981,7 +982,7 @@ class CheckCloudDirector(SourceBase):
             # add/update interface with retrieved data
             nic_object, ip_address_objects = self.add_update_interface(nic_object_dict.get(int_name), device_vm_object,
                                                                        int_data, nic_ips.get(int_name, list()),
-                                                                       disable_vlan_sync=False,
+                                                                       disable_vlan_sync=True,
                                                                        ip_tenant_inheritance_order=
                                                                        None)
 
