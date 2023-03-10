@@ -1,7 +1,9 @@
 FROM python:3.9-slim-bullseye
 
 # Install dependencies
-RUN apt-get update && apt-get -y upgrade && apt-get install -y git-core
+RUN apt-get update && apt-get -y upgrade && apt-get install -y git-core && \
+    pip3 install --upgrade pip && \
+    pip3 install wheel 
 
 # Run the application
 WORKDIR /app
@@ -13,18 +15,19 @@ RUN set -eux; \
 
 # Prepare the application
 COPY Dockerfile LICENSE.txt netbox-sync.py README.md requirements.txt settings-example.ini /app/
+RUN cd /app && \
+    pip3 install -r requirements.txt 
+RUN cd /app && \
+    pip3 install --upgrade git+https://github.com/vmware/vsphere-automation-sdk-python.git
+    
 COPY module /app/module
 
 RUN chown -R netbox-sync:netbox-sync /app
 
 # disable upgrading setup tools due to bug in setuptools and automation sdk
 # once this is fixed, switch back to: pip3 install --upgrade pip setuptools
-RUN cd /app && \
-    pip3 install --upgrade pip && \
-    pip3 install wheel && \
-    pip3 install -r requirements.txt 
-RUN cd /app && \
-    pip3 install --upgrade git+https://github.com/vmware/vsphere-automation-sdk-python.git
+
+
 
 USER netbox-sync
 
