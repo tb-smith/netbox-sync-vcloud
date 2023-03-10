@@ -308,11 +308,12 @@ class CheckCloudDirector(SourceBase):
                 log.info(f"Get vm data from vApp '{vapp_name}'")
                 for vm_res in vm_resource:
                     self.add_virtual_machine(vm_res,vdc['name'])        
-                    #break
+                    break
                 #print(type(vm_resource))
                 #break
 
         #for view_name, view_details in object_mapping.items():
+        self.update_basic_data()
         self.vcloudClient.logout()
 
 
@@ -980,7 +981,7 @@ class CheckCloudDirector(SourceBase):
             # add/update interface with retrieved data
             nic_object, ip_address_objects = self.add_update_interface(nic_object_dict.get(int_name), device_vm_object,
                                                                        int_data, nic_ips.get(int_name, list()),
-                                                                       disable_vlan_sync=True,
+                                                                       disable_vlan_sync=False,
                                                                        ip_tenant_inheritance_order=
                                                                        None)
 
@@ -1044,7 +1045,7 @@ class CheckCloudDirector(SourceBase):
         # add source identification tag
         self.inventory.add_update_object(NBTag, data={
             "name": self.source_tag,
-            "description": f"Marks objects synced from vCenter '{self.name}' "
+            "description": f"Marks objects synced from vCloud Director '{self.name}' "
                            f"({self.host_fqdn}) to this NetBox Instance."
         })
 
@@ -1055,6 +1056,6 @@ class CheckCloudDirector(SourceBase):
             this_site_object.update(data={
                 "name": self.site_name,
                 "comments": f"A default virtual site created to house objects "
-                            "that have been synced from this vCenter instance "
+                            "that have been synced from this vCloud Director instance "
                             "and have no predefined site assigned."
             })
