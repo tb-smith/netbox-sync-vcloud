@@ -804,7 +804,7 @@ class CheckCloudDirector(SourceBase):
             log.debug(f"FAIL get primary IP for vm:'{vm_data}'")
             return
         log.debug(" Try create VM only ")
-        self.add_device_vm_to_inventory(NBVM,object_data=vm_data,p_ipv4=vm_primary_ip4)
+        self.add_device_vm_to_inventory(NBVM,object_data=vm_data, vnic_data=dict(), nic_ips=dict(), p_ipv4=vm_primary_ip4)
         # add interfases
         log.debug(" create VM and interfases ")
         self.add_device_vm_to_inventory(NBVM, object_data=vm_data, vnic_data=vm_nic_dict,
