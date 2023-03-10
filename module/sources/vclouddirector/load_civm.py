@@ -777,7 +777,7 @@ class CheckCloudDirector(SourceBase):
                 prefix = 32 if matched_prefix is None else matched_prefix.data["prefix"].prefixlen
             else:
                 prefix = prefixNet.prefixlen    
-                ip_addr = f"{ip_addr}/{prefix}"
+            ip_addr = f"{ip_addr}/{prefix}"
 
             nic_ips[network].append(ip_addr)
             vm_primary_ip4 = ip_addr 
@@ -803,6 +803,10 @@ class CheckCloudDirector(SourceBase):
             log.info(f"SKEEP add vm: '{vm_data['name']}', Primary IP is Nome")
             log.debug(f"FAIL get primary IP for vm:'{vm_data}'")
             return
+        log.debug(" Try create VM only ")
+        self.add_device_vm_to_inventory(NBVM,object_data=vm_data,p_ipv4=vm_primary_ip4)
+        # add interfases
+        log.debug(" create VM and interfases ")
         self.add_device_vm_to_inventory(NBVM, object_data=vm_data, vnic_data=vm_nic_dict,
                                         nic_ips=nic_ips, p_ipv4=vm_primary_ip4, p_ipv6=None)
 
