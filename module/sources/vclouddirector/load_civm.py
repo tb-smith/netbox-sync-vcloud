@@ -807,10 +807,7 @@ class CheckCloudDirector(SourceBase):
         if vm_primary_ip4 is None:
             log.info(f"SKEEP add vm: '{vm_data['name']}', Primary IP is Nome")
             log.debug(f"FAIL get primary IP for vm:'{vm_data}'")
-            return
-        log.debug(" Try create VM only ")
-        self.add_device_vm_to_inventory(NBVM,object_data=vm_data, vnic_data=dict(), nic_ips=dict(), p_ipv4=vm_primary_ip4)
-        # add interfases
+            return    
         log.debug(" create VM and interfases ")
         self.add_device_vm_to_inventory(NBVM, object_data=vm_data, vnic_data=vm_nic_dict,
                                         nic_ips=nic_ips, p_ipv4=vm_primary_ip4, p_ipv6=None)
