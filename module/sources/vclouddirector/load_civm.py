@@ -308,7 +308,7 @@ class CheckCloudDirector(SourceBase):
                 log.info(f"Get vm data from vApp '{vapp_name}'")
                 for vm_res in vm_resource:
                     self.add_virtual_machine(vm_res,vdc['name'])        
-                    break
+                    #break
                 #print(type(vm_resource))
                 #break
 
@@ -734,6 +734,11 @@ class CheckCloudDirector(SourceBase):
         
         if site_name is not None:
             vm_data["cluster"]["site"] = {"name": site_name}
+            # Add adaption for change in NetBox 3.3.0 VM model
+            # issue: https://github.com/netbox-community/netbox/issues/10131#issuecomment-1225783758
+            if version.parse(self.inventory.netbox_api_version) >= version.parse("3.3.0"):
+                vm_data["site"] = {"name": site_name}
+
         else:
             log.warning(f"can't find Site for VM: '{vm_data}'")
         disk_size = 0
