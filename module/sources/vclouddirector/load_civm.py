@@ -92,6 +92,7 @@ class CheckCloudDirector(SourceBase):
     settings = {
         "enabled": True,
         "vcloud_url": None,
+        "validate_tls_certs": False,
         "username": None,
         "password": None,
         "vcloud_org": None,
@@ -134,11 +135,11 @@ class CheckCloudDirector(SourceBase):
         self.source_tag = f"Source: {name}"
         self.site_name = f"vCloudDirector: {name}"
 
-        self.create_api_session(settings)
-
         if self.enabled is False:
             log.info(f"Source '{name}' is currently disabled. Skipping")
             return
+        
+        self.create_api_session()
 
         self.init_successful = True
 
@@ -328,19 +329,18 @@ class CheckCloudDirector(SourceBase):
             "description": f"Marks objects synced from vcloud director '{self.name}' to this NetBox Instance."
         })
 
-    def create_api_session(self, settings):
+    def create_api_session(self):
         #print(settings)
         log.info(f"Create API session for '{self.name}'")
         requests.packages.urllib3.disable_warnings()
-        client = Client(settings['vcloud_url'],
-            verify_ssl_certs=True,
+        client = Client(self.vcloud_url,
+            verify_ssl_certs=self.validate_tls_certs,
             log_file='pyvcloud.log',
             log_requests=True,
             log_headers=True,
             log_bodies=True)
         client.set_highest_supported_version()
-        client.set_credentials(BasicLoginCredentials(settings['username'], settings['vcloud_org'], settings['password']))
-        #self.enabled = True
+        client.set_credentials(BasicLoginCredentials(self.username, self.vcloud_org, self.password))
         self.vcloudClient = client
 
     def get_vcloud_org(self, client):
