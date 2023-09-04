@@ -13,9 +13,12 @@
 # conditions of the subcomponent's license, as noted in the LICENSE file.
 #
 # Illustrates how to list all vApps within a single vDC.
+# https://github.com/vmware/pyvcloud/blob/master/pyvcloud/vcd/utils.py
 
 import sys
+
 import xmltodict
+from pyvcloud.vcd.utils import vdc_to_dict
 from pyvcloud.vcd.client import BasicLoginCredentials
 from pyvcloud.vcd.client import Client
 from pyvcloud.vcd.client import EntityType
@@ -56,17 +59,53 @@ client.set_credentials(BasicLoginCredentials(user, org, password))
 print("Fetching Org...")
 org_resource = client.get_org()
 org = Org(client, resource=org_resource)
+'''
+for vdc_info in org.list_vdcs():
+    name = vdc_info['name']
+    href = vdc_info['href']
+    print("VDC name: {0}\n    href: {1}".format(
+        vdc_info['name'], vdc_info['href']))
+    vdc = VDC(client, resource=org.get_vdc(vdc_info['name']))
+    print("{0}{1}".format("Name".ljust(40), "Type"))
+    print("{0}{1}".format("----".ljust(40), "----"))
+    for resource in vdc.list_resources():
+        print('%s%s' % (resource['name'].ljust(40), resource['type']))
+'''
 
 vdc_list = org.list_vdcs()
 
-print("Fetching VDC...")
+#print("Fetching VDC...")
 
-allvm_org_list = dict()
+allvm_org_data = dict()
+
 
 for vdc in vdc_list: 
     vdc_name = (vdc['name'])
     vdc_resource = org.get_vdc(vdc_name)
+    vdc_cpu_frenzi = vdc_resource.VCpuInMhz2
+
     vdc = VDC(client, resource=vdc_resource)
+
+    vdc_dict = vdc_to_dict(vdc_resource)
+    print(f"vdc Info is:'{vdc_dict}'")
+
+    storage_profile = vdc.get_storage_profile('C01-Medium')
+
+    raw_data = etree.tostring(storage_profile)
+    storage_dict = xmltodict.parse(raw_data)
+    storage_url = storage_dict.get('VdcStorageProfile').get('@href') 
+    
+    storage_data = vdc.client.get_resource(storage_url)
+
+    print(f" stprof is: {storage_data.__dict__}")
+    break
+    '''
+    Сначала получаете список политик хранения с помощью функции get_storage_profiles() из модуля pyvcloud.vcd.vdc.
+    Далее с помощью функции get_resource() из модуля pyvcloud.vcd.client запрашиваете данные используя url, 
+    который находиться в атрибуте href политики хранения и получаете нужные данные Limit, StorageUsedMB.
+    '''
+    for profile in storage_profiles:
+        print(f"profile: {profile}")
 
     allvm_org_list[vdc_name] = {}
     print("Fetching vApps....")
@@ -128,7 +167,7 @@ for vdc in vdc_list:
 
         #print(type(vm_resource))
         break
-print(f"vm info is {allvm_org_list}")
+#print(f"vm info is {allvm_org_list}")
 # Log out.
 print("Logging out")
 client.logout()
