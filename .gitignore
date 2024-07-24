@@ -13,6 +13,9 @@ __pycache__
 # log dir
 log/*
 
+#log file
+*.log*
+
 # chache files
 cache/*
 

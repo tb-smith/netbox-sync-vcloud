@@ -1,4 +1,5 @@
 
+# This a fork of project [bb-Ricardo/netbox-sync](https://github.com/bb-Ricardo/netbox-sync)
 # NetBox-Sync
 
 This is a tool to sync data from different sources to a NetBox instance.
@@ -39,6 +40,7 @@ This ensures stale objects are removed from NetBox keeping an accurate current s
 * aiodns==2.0.0
 * setuptools>=62.00.0
 * pyyaml==6.0
+* pyvcloud >=23.0
 
 ### Environment
 * NetBox >= 2.9

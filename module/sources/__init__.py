@@ -10,6 +10,7 @@
 # define all available sources here
 from module.sources.vmware.connection import VMWareHandler
 from module.sources.check_redfish.import_inventory import CheckRedfish
+from .vclouddirector.load_civm import CheckCloudDirector 
 
 from module.common.logging import get_logger
 from module.netbox.inventory import NetBoxInventory
@@ -18,7 +19,7 @@ from module.config.base import ConfigOptions
 from module.config import source_config_section_name
 
 # list of valid sources
-valid_sources = [VMWareHandler, CheckRedfish]
+valid_sources = [VMWareHandler, CheckRedfish, CheckCloudDirector]
 
 
 def validate_source(source_class_object=None, state="pre"):
